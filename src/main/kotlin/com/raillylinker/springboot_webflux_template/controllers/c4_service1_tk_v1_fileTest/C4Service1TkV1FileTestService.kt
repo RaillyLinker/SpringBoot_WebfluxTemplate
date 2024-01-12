@@ -107,7 +107,6 @@ class C4Service1TkV1FileTestService(
         )
     }
 
-    // todo : reactor 코드 개선
     ////
     fun api3(serverHttpResponse: ServerHttpResponse): Mono<Void> {
         // 프로젝트 루트 경로 (프로젝트 settings.gradle 이 있는 경로)
@@ -167,27 +166,40 @@ class C4Service1TkV1FileTestService(
         // 압축 대상 디렉토리
         val sourceDir = File("$projectRootAbsolutePathString/src/main/resources/static/resource_c4_n3")
 
-        // 파일 저장 디렉토리 경로
-        val saveDirectoryPathString = "./files/temp"
-        val saveDirectoryPath = Paths.get(saveDirectoryPathString).toAbsolutePath().normalize()
-        // 파일 저장 디렉토리 생성
-        Files.createDirectories(saveDirectoryPath)
+        val baseDirectory = "./files/temp/"
 
-        // 확장자 포함 파일명 생성
-        val fileTargetPath = saveDirectoryPath.resolve(
-            "zipped_${LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH_mm_ss_SSS"))}.zip"
-        ).normalize()
-
-        // 압축 파일 생성
-        ZipOutputStream(FileOutputStream(fileTargetPath.toFile())).use { zipOutputStream ->
-            CustomUtilObject.compressDirectoryToZip(sourceDir, sourceDir.name, zipOutputStream)
+        // 디렉토리가 없으면 생성
+        val saveDirectoryPathString = Paths.get(baseDirectory)
+        if (!Files.exists(saveDirectoryPathString)) {
+            Files.createDirectories(saveDirectoryPathString)
         }
 
-        serverHttpResponse.setStatusCode(HttpStatus.OK)
-        serverHttpResponse.headers.set("api-result-code", "0")
-        return serverHttpResponse.setComplete()
+        // 확장자 포함 파일명 생성
+        val fileTargetPath = CustomUtilObject.resolveDuplicateFileName(
+            Paths.get(
+                "${baseDirectory}zipped.zip"
+            )
+        )
+
+        // 비동기적으로 압축 파일 생성
+        val zipOperationMono = Mono.defer {
+            Mono.fromCallable {
+                ZipOutputStream(FileOutputStream(fileTargetPath.toFile())).use { zipOutputStream ->
+                    CustomUtilObject.compressDirectoryToZip(sourceDir, sourceDir.name, zipOutputStream)
+                }
+            }
+        }.subscribeOn(Schedulers.boundedElastic())
+
+        return zipOperationMono.then(
+            Mono.fromRunnable {
+                serverHttpResponse.setStatusCode(HttpStatus.OK)
+                serverHttpResponse.headers.set("api-result-code", "0")
+                serverHttpResponse.setComplete()
+            }
+        )
     }
 
+    // todo : reactor 코드 개선
     ////
     fun api4(serverHttpResponse: ServerHttpResponse): Mono<Void> {
         // 프로젝트 루트 경로 (프로젝트 settings.gradle 이 있는 경로)
