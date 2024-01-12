@@ -235,7 +235,7 @@ class C2Service1TkV1RequestTestService(
             } ?: emptyList()
 
             // 모든 파일이 저장된 후에 계속 진행
-            Flux.concat(saveFiles + saveNullableFiles)
+            Flux.merge(saveFiles + saveNullableFiles)
                 .then(
                     Mono.create { sink ->
                         serverHttpResponse.setStatusCode(HttpStatus.OK)
@@ -259,60 +259,68 @@ class C2Service1TkV1RequestTestService(
         }
     }
 
-    // todo 아래부터 비동기 처리 및 개선
     ////
     fun api9(
         serverHttpResponse: ServerHttpResponse, inputVoMono: Mono<C2Service1TkV1RequestTestController.Api9InputVo>
     ): Mono<C2Service1TkV1RequestTestController.Api9OutputVo> {
         return inputVoMono.flatMap { inputVo ->
-            // 비동기적으로 파일 저장
-            val saveFile1 = inputVo.multipartFile.transferTo(
-                Paths.get(
-                    "./files/temp/${
-                        LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy_MM_dd_HH_mm_ss_SSS"))
-                    }_${inputVo.multipartFile.filename()}"
-                )
-            )
+            val baseDirectory = "./files/temp/"
 
-            val saveFile2 = inputVo.multipartFileNullable?.let { nullableFile ->
+            // 디렉토리가 없으면 생성
+            val directory = Paths.get(baseDirectory)
+            if (!Files.exists(directory)) {
+                Files.createDirectories(directory)
+            }
+
+            // 비동기적으로 파일 저장
+            val fileSaveProcessMono1 = inputVo.multipartFile.transferTo(
+                CustomUtilObject.resolveDuplicateFileName(
+                    Paths.get(
+                        "$baseDirectory${inputVo.multipartFile.filename()}"
+                    )
+                )
+            ).subscribeOn(Schedulers.boundedElastic())
+
+            val fileSaveProcessMono2 = inputVo.multipartFileNullable?.let { nullableFile ->
                 // 비동기적으로 파일 저장
                 nullableFile.transferTo(
-                    Paths.get(
-                        "./files/temp/${
-                            LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy_MM_dd_HH_mm_ss_SSS"))
-                        }_${nullableFile.filename()}"
+                    CustomUtilObject.resolveDuplicateFileName(
+                        Paths.get(
+                            "${baseDirectory}n_${nullableFile.filename()}"
+                        )
                     )
-                )
+                ).subscribeOn(Schedulers.boundedElastic())
             } ?: Mono.empty()
 
-            // saveFile1, saveFile2 의 비동기 작업이 모두 끝났을 때
-
-            // input Json String to Object
-            val inputJsonObject = Gson().fromJson<C2Service1TkV1RequestTestController.Api9InputVo.InputJsonObject>(
-                inputVo.jsonString, // 해석하려는 json 형식의 String
-                object :
-                    TypeToken<C2Service1TkV1RequestTestController.Api9InputVo.InputJsonObject>() {}.type // 파싱할 데이터 객체 타입
-            )
-
-            serverHttpResponse.setStatusCode(HttpStatus.OK)
-            serverHttpResponse.headers.set("api-result-code", "0")
-
-            saveFile1.and(saveFile2).then(
-                Mono.just(
-                    C2Service1TkV1RequestTestController.Api9OutputVo(
-                        inputJsonObject.requestFormString,
-                        inputJsonObject.requestFormStringNullable,
-                        inputJsonObject.requestFormInt,
-                        inputJsonObject.requestFormIntNullable,
-                        inputJsonObject.requestFormDouble,
-                        inputJsonObject.requestFormDoubleNullable,
-                        inputJsonObject.requestFormBoolean,
-                        inputJsonObject.requestFormBooleanNullable,
-                        inputJsonObject.requestFormStringList,
-                        inputJsonObject.requestFormStringListNullable
-                    )
+            val jsonParsingMono = Mono.fromCallable {
+                Gson().fromJson<C2Service1TkV1RequestTestController.Api9InputVo.InputJsonObject>(
+                    inputVo.jsonString,
+                    object :
+                        TypeToken<C2Service1TkV1RequestTestController.Api9InputVo.InputJsonObject>() {}.type
                 )
-            )
+            }.subscribeOn(Schedulers.boundedElastic())
+
+            Mono.zip(fileSaveProcessMono1, fileSaveProcessMono2, jsonParsingMono).flatMap {
+                Mono.create { sink ->
+                    val jsonParsingObject = it.t3
+                    serverHttpResponse.setStatusCode(HttpStatus.OK)
+                    serverHttpResponse.headers.set("api-result-code", "0")
+                    sink.success(
+                        C2Service1TkV1RequestTestController.Api9OutputVo(
+                            jsonParsingObject.requestFormString,
+                            jsonParsingObject.requestFormStringNullable,
+                            jsonParsingObject.requestFormInt,
+                            jsonParsingObject.requestFormIntNullable,
+                            jsonParsingObject.requestFormDouble,
+                            jsonParsingObject.requestFormDoubleNullable,
+                            jsonParsingObject.requestFormBoolean,
+                            jsonParsingObject.requestFormBooleanNullable,
+                            jsonParsingObject.requestFormStringList,
+                            jsonParsingObject.requestFormStringListNullable
+                        )
+                    )
+                }
+            }
         }
     }
 
@@ -416,12 +424,6 @@ class C2Service1TkV1RequestTestService(
     fun api16(
         serverHttpResponse: ServerHttpResponse, videoHeight: C2Service1TkV1RequestTestController.Api16VideoHeight
     ): Mono<Resource> {
-        // 프로젝트 루트 경로 (프로젝트 settings.gradle 이 있는 경로)
-        val projectRootAbsolutePathString: String = File("").absolutePath
-
-        // 파일 절대 경로 및 파일명
-        val serverFileAbsolutePathString = "$projectRootAbsolutePathString/src/main/resources/static/resource_c2_n16"
-
         // 멤버십 등의 정보로 해상도 제한을 걸 수도 있음
         val serverFileNameString =
             when (videoHeight) {
@@ -442,41 +444,41 @@ class C2Service1TkV1RequestTestService(
                 }
             }
 
-        // 반환값에 전해줄 FIS
-        val fileInputStream = FileInputStream("$serverFileAbsolutePathString/$serverFileNameString")
-
-        serverHttpResponse.setStatusCode(HttpStatus.OK)
-        serverHttpResponse.headers.set("api-result-code", "0")
-
-        return Mono.just(
-            // fileInputStream 을 Resource 타입으로 변형하여 반환
-            ByteArrayResource(FileCopyUtils.copyToByteArray(fileInputStream))
-        )
+        return Mono.create { sink ->
+            serverHttpResponse.setStatusCode(HttpStatus.OK)
+            serverHttpResponse.headers.set("api-result-code", "0")
+            sink.success(
+                ByteArrayResource(
+                    FileCopyUtils.copyToByteArray(
+                        FileInputStream(
+                            "${File("").absolutePath}/src/main/resources/static/resource_c2_n16/$serverFileNameString"
+                        )
+                    )
+                )
+            )
+        }
     }
 
     ////
     fun api17(
         serverHttpResponse: ServerHttpResponse
     ): Mono<Resource> {
-        // 프로젝트 루트 경로 (프로젝트 settings.gradle 이 있는 경로)
-        val projectRootAbsolutePathString: String = File("").absolutePath
-
-        // 파일 절대 경로 및 파일명
-        val serverFileAbsolutePathString = "$projectRootAbsolutePathString/src/main/resources/static/resource_c2_n17"
-        val serverFileNameString = "test.mp3"
-
-        // 반환값에 전해줄 FIS
-        val fileInputStream = FileInputStream("$serverFileAbsolutePathString/$serverFileNameString")
-
-        serverHttpResponse.setStatusCode(HttpStatus.OK)
-        serverHttpResponse.headers.set("api-result-code", "0")
-
-        return Mono.just(
-            // fileInputStream 을 Resource 타입으로 변형하여 반환
-            ByteArrayResource(FileCopyUtils.copyToByteArray(fileInputStream))
-        )
+        return Mono.create { sink ->
+            serverHttpResponse.setStatusCode(HttpStatus.OK)
+            serverHttpResponse.headers.set("api-result-code", "0")
+            sink.success(
+                ByteArrayResource(
+                    FileCopyUtils.copyToByteArray(
+                        FileInputStream(
+                            "${File("").absolutePath}/src/main/resources/static/resource_c2_n17/test.mp3"
+                        )
+                    )
+                )
+            )
+        }
     }
 
+    // todo 아래부터 비동기 처리 및 개선
     ////
     private val sseStringChannel = Sinks.many().multicast().directAllOrNothing<String>()
     fun api18(
