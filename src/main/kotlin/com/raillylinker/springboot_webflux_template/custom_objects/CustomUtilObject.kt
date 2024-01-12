@@ -14,6 +14,7 @@ import java.io.FileOutputStream
 import java.net.URI
 import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.Paths
 import java.util.regex.Pattern
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
@@ -221,5 +222,18 @@ object CustomUtilObject {
             index++
         }
         return resolvedPath
+    }
+
+    // (중복되지 않는 폴더 경로 가져오기)
+    // 같은 폴더가 존재하면 (1), (2) 와 같이 숫자를 붙임
+    fun getUniqueDirectoryPath(basePath: String): Path {
+        var directoryPath = basePath
+        var counter = 1
+
+        while (File(directoryPath).exists()) {
+            directoryPath = "${basePath}(${counter++})/"
+        }
+
+        return Paths.get(directoryPath)
     }
 }

@@ -17,8 +17,6 @@ import java.io.FileOutputStream
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.time.Duration
-import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
 import java.util.zip.ZipOutputStream
 
 @Service
@@ -199,7 +197,6 @@ class C4Service1TkV1FileTestService(
         )
     }
 
-    // todo : reactor 코드 개선
     ////
     fun api4(serverHttpResponse: ServerHttpResponse): Mono<Void> {
         // 프로젝트 루트 경로 (프로젝트 settings.gradle 이 있는 경로)
@@ -207,47 +204,53 @@ class C4Service1TkV1FileTestService(
         val filePathString =
             "$projectRootAbsolutePathString/src/main/resources/static/resource_c4_n4/test.zip"
 
-        // 파일 저장 디렉토리 경로
-        val saveDirectoryPathString = "./files/temp"
-        val saveDirectoryPath = Paths.get(saveDirectoryPathString).toAbsolutePath().normalize()
-        // 파일 저장 디렉토리 생성
-        Files.createDirectories(saveDirectoryPath)
+        val baseDirectory = "./files/temp/"
 
-        // 요청 시간을 문자열로
-        val timeString = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH_mm_ss_SSS"))
+        // 디렉토리가 없으면 생성
+        val saveDirectoryPathString = Paths.get(baseDirectory)
+        if (!Files.exists(saveDirectoryPathString)) {
+            Files.createDirectories(saveDirectoryPathString)
+        }
 
         // 확장자 포함 파일명 생성
-        val saveFileName = "unzipped_${timeString}/"
+        val fileTargetPath = CustomUtilObject.getUniqueDirectoryPath("${baseDirectory}unzipped")
 
-        val fileTargetPath = saveDirectoryPath.resolve(saveFileName).normalize()
+        val unzipOperationMono = Mono.defer {
+            Mono.fromCallable {
+                CustomUtilObject.unzipFile(filePathString, fileTargetPath)
+            }
+        }.subscribeOn(Schedulers.boundedElastic())
 
-        CustomUtilObject.unzipFile(filePathString, fileTargetPath)
-
-        serverHttpResponse.setStatusCode(HttpStatus.OK)
-        serverHttpResponse.headers.set("api-result-code", "0")
-        return serverHttpResponse.setComplete()
+        return unzipOperationMono.then(
+            Mono.fromRunnable {
+                serverHttpResponse.setStatusCode(HttpStatus.OK)
+                serverHttpResponse.headers.set("api-result-code", "0")
+                serverHttpResponse.setComplete()
+            }
+        )
     }
 
     ////
     fun api5(serverHttpResponse: ServerHttpResponse, delayTimeSecond: Long): Mono<Resource> {
-        // 프로젝트 루트 경로 (프로젝트 settings.gradle 이 있는 경로)
-        val projectRootAbsolutePathString: String = File("").absolutePath
-
-        // 파일 절대 경로 및 파일명 (프로젝트 루트 경로에 있는 files/temp 폴더를 기준으로 함)
-        val filePath = "$projectRootAbsolutePathString/src/main/resources/static/resource_c4_n5/client_image_test.jpg"
-
-        // 반환값에 전해줄 FIS
-        val file = File(filePath)
-
-        serverHttpResponse.setStatusCode(HttpStatus.OK)
-        serverHttpResponse.headers.set("api-result-code", "0")
-        serverHttpResponse.headers.set("Content-Disposition", "attachment; filename=\"" + file.name + "\"")
+        if (delayTimeSecond < 0) {
+            serverHttpResponse.setStatusCode(HttpStatus.INTERNAL_SERVER_ERROR)
+            return Mono.empty()
+        }
 
         return Mono.delay(Duration.ofSeconds(delayTimeSecond)).then(
-            Mono.just(
+            Mono.create { sink ->
+                val file =
+                    File(
+                        "${File("").absolutePath}/src/main/resources/static/resource_c4_n5/client_image_test.jpg"
+                    )
+
+                serverHttpResponse.setStatusCode(HttpStatus.OK)
+                serverHttpResponse.headers.set("api-result-code", "0")
+                serverHttpResponse.headers.set("Content-Disposition", "attachment; filename=\"" + file.name + "\"")
+
                 // fileInputStream 을 Resource 타입으로 변형하여 반환
-                ByteArrayResource(FileCopyUtils.copyToByteArray(file.inputStream()))
-            )
+                sink.success(ByteArrayResource(FileCopyUtils.copyToByteArray(file.inputStream())))
+            }
         )
     }
 }
