@@ -478,7 +478,6 @@ class C2Service1TkV1RequestTestService(
         }
     }
 
-    // todo 아래부터 비동기 처리 및 개선
     ////
     private val sseStringChannel = Sinks.many().multicast().directAllOrNothing<String>()
     fun api18(
@@ -488,10 +487,10 @@ class C2Service1TkV1RequestTestService(
         serverHttpResponse.setStatusCode(HttpStatus.OK)
         serverHttpResponse.headers.set("api-result-code", "0")
         return Flux.merge( // Flux Stream 병합
-            // 접속 완료시 바로 반환
+            // 접속 완료시 바로 반환 Flux
             Flux.just("[[CONNECT]]"),
 
-            // 주기적 신호 반환
+            // 주기적 신호 반환 Flux
             Flux.interval(Duration.ofSeconds(3))
                 .map { _: Long? ->
                     "[[HEARTBEAT]] ${
@@ -499,7 +498,7 @@ class C2Service1TkV1RequestTestService(
                     }"
                 },
 
-            // 메인 SSE Stream
+            // 메인 SSE Stream Flux
             sseStringChannel.asFlux()
         ).map { sseMsg: String ->
             // Flux Stream 에서 message String 이 올 때마다 응답 반환
