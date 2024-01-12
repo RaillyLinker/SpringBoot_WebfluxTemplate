@@ -136,21 +136,27 @@ class C4Service1TkV1FileTestService(
             )
         )
 
-        // 압축 파일 생성
-        val zipOutputStream = ZipOutputStream(FileOutputStream(fileTargetPath.toFile()))
-
-        for (filePath in filePathList) {
-            val file = File(filePath)
-            if (file.exists()) {
-                CustomUtilObject.addToZip(file, file.name, zipOutputStream)
+        // 비동기적으로 압축 파일 생성
+        val zipOperationMono = Mono.defer {
+            Mono.fromCallable {
+                val zipOutputStream = ZipOutputStream(FileOutputStream(fileTargetPath.toFile()))
+                for (filePath in filePathList) {
+                    val file = File(filePath)
+                    if (file.exists()) {
+                        CustomUtilObject.addToZip(file, file.name, zipOutputStream)
+                    }
+                }
+                zipOutputStream.close()
             }
-        }
+        }.subscribeOn(Schedulers.boundedElastic())
 
-        zipOutputStream.close()
-
-        serverHttpResponse.setStatusCode(HttpStatus.OK)
-        serverHttpResponse.headers.set("api-result-code", "0")
-        return serverHttpResponse.setComplete()
+        return zipOperationMono.then(
+            Mono.fromRunnable {
+                serverHttpResponse.setStatusCode(HttpStatus.OK)
+                serverHttpResponse.headers.set("api-result-code", "0")
+                serverHttpResponse.setComplete()
+            }
+        )
     }
 
     ////
