@@ -23,17 +23,20 @@ class C1Service(
     fun api1(
         serverHttpResponse: ServerHttpResponse
     ): Mono<Rendering> {
-        serverHttpResponse.setStatusCode(HttpStatus.OK)
-        serverHttpResponse.headers.set("api-result-code", "0")
 
-        return Mono.just(
-            Rendering.view("template_c1_n1/home_page")
-                .modelAttribute(
-                    "viewModel", Api1ViewModel(
-                        activeProfile
-                    )
-                ).build()
-        )
+        return Mono.create { sink ->
+            serverHttpResponse.setStatusCode(HttpStatus.OK)
+            serverHttpResponse.headers.set("api-result-code", "0")
+
+            sink.success(
+                Rendering.view("template_c1_n1/home_page")
+                    .modelAttribute(
+                        "viewModel", Api1ViewModel(
+                            activeProfile
+                        )
+                    ).build()
+            )
+        }
     }
 
     data class Api1ViewModel(

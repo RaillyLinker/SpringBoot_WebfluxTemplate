@@ -62,7 +62,7 @@ dependencies {
 
     // (Database R2DBC)
     implementation("org.springframework.boot:spring-boot-starter-data-r2dbc:3.2.1")
-    implementation("io.asyncer:r2dbc-mysql:1.0.4")
+    implementation("io.asyncer:r2dbc-mysql:1.0.6")
 
 	// (JWT)
 	// : JWT 인증 토큰 라이브러리
