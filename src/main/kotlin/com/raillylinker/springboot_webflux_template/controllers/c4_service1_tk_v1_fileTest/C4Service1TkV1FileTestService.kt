@@ -11,6 +11,7 @@ import org.springframework.http.server.reactive.ServerHttpResponse
 import org.springframework.stereotype.Service
 import org.springframework.util.FileCopyUtils
 import reactor.core.publisher.Mono
+import reactor.core.scheduler.Schedulers
 import java.io.File
 import java.io.FileOutputStream
 import java.nio.file.Files
@@ -36,26 +37,35 @@ class C4Service1TkV1FileTestService(
         inputVoMono: Mono<C4Service1TkV1FileTestController.Api1InputVo>
     ): Mono<C4Service1TkV1FileTestController.Api1OutputVo> {
         return inputVoMono.flatMap { inputVo ->
-            // 비동기적으로 파일 저장
-            val fileName = "${
-                LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy_MM_dd_HH_mm_ss_SSS"))
-            }_${inputVo.multipartFile.filename()}"
-            val saveFile = inputVo.multipartFile.transferTo(
+            val baseDirectory = "./files/temp/"
+
+            // 디렉토리가 없으면 생성
+            val directory = Paths.get(baseDirectory)
+            if (!Files.exists(directory)) {
+                Files.createDirectories(directory)
+            }
+
+            val filePath = CustomUtilObject.resolveDuplicateFileName(
                 Paths.get(
-                    "./files/temp/$fileName"
+                    "$baseDirectory${inputVo.multipartFile.filename()}"
                 )
             )
 
-            // saveFile1, saveFile2 의 비동기 작업이 모두 끝났을 때
-            serverHttpResponse.setStatusCode(HttpStatus.OK)
-            serverHttpResponse.headers.set("api-result-code", "0")
+            // 비동기적으로 파일 저장
+            val fileSaveProcessMono1 = inputVo.multipartFile.transferTo(
+                filePath
+            ).subscribeOn(Schedulers.boundedElastic())
 
-            saveFile.then(
-                Mono.just(
-                    C4Service1TkV1FileTestController.Api1OutputVo(
-                        "http://127.0.0.1:8080/service1/tk/v1/file-test/download-from-temp/$fileName"
+            fileSaveProcessMono1.then(
+                Mono.create { sink ->
+                    serverHttpResponse.setStatusCode(HttpStatus.OK)
+                    serverHttpResponse.headers.set("api-result-code", "0")
+                    sink.success(
+                        C4Service1TkV1FileTestController.Api1OutputVo(
+                            "http://127.0.0.1:8080/service1/tk/v1/file-test/download-from-temp/${filePath.fileName}"
+                        )
                     )
-                )
+                }
             )
         }
     }
@@ -97,6 +107,7 @@ class C4Service1TkV1FileTestService(
         )
     }
 
+    // todo : reactor 코드 개선
     ////
     fun api3(serverHttpResponse: ServerHttpResponse): Mono<Void> {
         // 프로젝트 루트 경로 (프로젝트 settings.gradle 이 있는 경로)
@@ -110,18 +121,20 @@ class C4Service1TkV1FileTestService(
             "$projectRootAbsolutePathString/src/main/resources/static/resource_c4_n3/4.mp4"
         )
 
-        // 파일 저장 디렉토리 경로
-        val saveDirectoryPathString = "./files/temp"
-        val saveDirectoryPath = Paths.get(saveDirectoryPathString).toAbsolutePath().normalize()
-        // 파일 저장 디렉토리 생성
-        Files.createDirectories(saveDirectoryPath)
+        val baseDirectory = "./files/temp/"
+
+        // 디렉토리가 없으면 생성
+        val saveDirectoryPathString = Paths.get(baseDirectory)
+        if (!Files.exists(saveDirectoryPathString)) {
+            Files.createDirectories(saveDirectoryPathString)
+        }
 
         // 확장자 포함 파일명 생성
-        val fileTargetPath = saveDirectoryPath.resolve(
-            "zipped_${
-                LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH_mm_ss_SSS"))
-            }.zip"
-        ).normalize()
+        val fileTargetPath = CustomUtilObject.resolveDuplicateFileName(
+            Paths.get(
+                "${baseDirectory}zipped.zip"
+            )
+        )
 
         // 압축 파일 생성
         val zipOutputStream = ZipOutputStream(FileOutputStream(fileTargetPath.toFile()))
