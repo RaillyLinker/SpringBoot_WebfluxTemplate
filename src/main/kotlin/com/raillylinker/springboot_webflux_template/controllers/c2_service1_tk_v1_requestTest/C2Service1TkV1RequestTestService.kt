@@ -300,7 +300,7 @@ class C2Service1TkV1RequestTestService(
                     object :
                         TypeToken<C2Service1TkV1RequestTestController.Api9InputVo.InputJsonObject>() {}.type
                 )
-            }.subscribeOn(Schedulers.boundedElastic())
+            }.subscribeOn(Schedulers.parallel())
 
             Mono.zip(fileSaveProcessMono1, fileSaveProcessMono2, jsonParsingMono).flatMap {
                 Mono.create { sink ->
