@@ -524,7 +524,6 @@ class C3Service1TkV1RequestFromServerTestService(
                 Mono.empty()
             }
         }.onErrorResume {
-            throw it
             serverHttpResponse.setStatusCode(HttpStatus.INTERNAL_SERVER_ERROR)
             serverHttpResponse.headers.set("api-result-code", "1")
             Mono.empty()
