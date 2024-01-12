@@ -2,6 +2,7 @@ package com.raillylinker.springboot_webflux_template.controllers.c2_service1_tk_
 
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import com.raillylinker.springboot_webflux_template.custom_objects.CustomUtilObject
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
@@ -18,6 +19,8 @@ import reactor.core.scheduler.Schedulers
 import java.io.File
 import java.io.FileInputStream
 import java.net.URI
+import java.nio.file.Files
+import java.nio.file.Path
 import java.nio.file.Paths
 import java.time.Duration
 import java.time.LocalDateTime
@@ -40,7 +43,6 @@ class C2Service1TkV1RequestTestService(
     ): Mono<String> {
         serverHttpResponse.setStatusCode(HttpStatus.OK)
         serverHttpResponse.headers.set("api-result-code", "0")
-
         return Mono.just(activeProfile)
     }
 
@@ -48,7 +50,6 @@ class C2Service1TkV1RequestTestService(
     fun api2(serverHttpResponse: ServerHttpResponse): Mono<Void> {
         serverHttpResponse.setStatusCode(HttpStatus.PERMANENT_REDIRECT)
         serverHttpResponse.headers.location = URI.create("/service1/tk/v1/request-test")
-
         return serverHttpResponse.setComplete()
     }
 
@@ -68,7 +69,6 @@ class C2Service1TkV1RequestTestService(
     ): Mono<C2Service1TkV1RequestTestController.Api3OutputVo> {
         serverHttpResponse.setStatusCode(HttpStatus.OK)
         serverHttpResponse.headers.set("api-result-code", "0")
-
         return Mono.just(
             C2Service1TkV1RequestTestController.Api3OutputVo(
                 queryParamString,
@@ -92,7 +92,6 @@ class C2Service1TkV1RequestTestService(
     ): Mono<C2Service1TkV1RequestTestController.Api4OutputVo> {
         serverHttpResponse.setStatusCode(HttpStatus.OK)
         serverHttpResponse.headers.set("api-result-code", "0")
-
         return Mono.just(
             C2Service1TkV1RequestTestController.Api4OutputVo(
                 pathParamInt
@@ -106,7 +105,6 @@ class C2Service1TkV1RequestTestService(
     ): Mono<C2Service1TkV1RequestTestController.Api5OutputVo> {
         serverHttpResponse.setStatusCode(HttpStatus.OK)
         serverHttpResponse.headers.set("api-result-code", "0")
-
         return Mono.just(
             C2Service1TkV1RequestTestController.Api5OutputVo(
                 inputVo.requestBodyString,
@@ -129,7 +127,6 @@ class C2Service1TkV1RequestTestService(
     ): Mono<C2Service1TkV1RequestTestController.Api6OutputVo> {
         serverHttpResponse.setStatusCode(HttpStatus.OK)
         serverHttpResponse.headers.set("api-result-code", "0")
-
         return Mono.just(
             C2Service1TkV1RequestTestController.Api6OutputVo(
                 inputVo.requestFormString,
@@ -151,53 +148,55 @@ class C2Service1TkV1RequestTestService(
         serverHttpResponse: ServerHttpResponse, inputVoMono: Mono<C2Service1TkV1RequestTestController.Api7InputVo>
     ): Mono<C2Service1TkV1RequestTestController.Api7OutputVo> {
         return inputVoMono.flatMap { inputVo ->
+            val baseDirectory = "./files/temp/"
+
+            // 디렉토리가 없으면 생성
+            val directory = Paths.get(baseDirectory)
+            if (!Files.exists(directory)) {
+                Files.createDirectories(directory)
+            }
+
             // 비동기적으로 파일 저장
-            val saveFile1 = inputVo.multipartFile.transferTo(
-                Paths.get(
-                    "./files/temp/${
-                        LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy_MM_dd_HH_mm_ss_SSS"))
-                    }_${inputVo.multipartFile.filename()}"
+            val fileSaveProcessMono1 = inputVo.multipartFile.transferTo(
+                CustomUtilObject.resolveDuplicateFileName(
+                    Paths.get(
+                        "$baseDirectory${inputVo.multipartFile.filename()}"
+                    )
                 )
             ).subscribeOn(Schedulers.boundedElastic())
-                .onErrorResume { throwable ->
-                    throw throwable
-                }
 
-            val saveFile2 = inputVo.multipartFileNullable?.let { nullableFile ->
+            val fileSaveProcessMono2 = inputVo.multipartFileNullable?.let { nullableFile ->
                 // 비동기적으로 파일 저장
                 nullableFile.transferTo(
-                    Paths.get(
-                        "./files/temp/${
-                            LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy_MM_dd_HH_mm_ss_SSS"))
-                        }_${nullableFile.filename()}"
-                    )
-                ).subscribeOn(Schedulers.boundedElastic())
-                    .onErrorResume { throwable ->
-                        throw throwable
-                    }
-            } ?: Mono.empty()
-
-            Mono.zip(saveFile1, saveFile2)
-                .then(
-                    Mono.just(
-                        C2Service1TkV1RequestTestController.Api7OutputVo(
-                            inputVo.requestFormString,
-                            inputVo.requestFormStringNullable,
-                            inputVo.requestFormInt,
-                            inputVo.requestFormIntNullable,
-                            inputVo.requestFormDouble,
-                            inputVo.requestFormDoubleNullable,
-                            inputVo.requestFormBoolean,
-                            inputVo.requestFormBooleanNullable,
-                            inputVo.requestFormStringList,
-                            inputVo.requestFormStringListNullable
+                    CustomUtilObject.resolveDuplicateFileName(
+                        Paths.get(
+                            "${baseDirectory}n_${nullableFile.filename()}"
                         )
                     )
+                ).subscribeOn(Schedulers.boundedElastic())
+            } ?: Mono.empty()
+
+            Mono.zip(fileSaveProcessMono1, fileSaveProcessMono2)
+                .then(
+                    Mono.create { sink ->
+                        serverHttpResponse.setStatusCode(HttpStatus.OK)
+                        serverHttpResponse.headers.set("api-result-code", "0")
+                        sink.success(
+                            C2Service1TkV1RequestTestController.Api7OutputVo(
+                                inputVo.requestFormString,
+                                inputVo.requestFormStringNullable,
+                                inputVo.requestFormInt,
+                                inputVo.requestFormIntNullable,
+                                inputVo.requestFormDouble,
+                                inputVo.requestFormDoubleNullable,
+                                inputVo.requestFormBoolean,
+                                inputVo.requestFormBooleanNullable,
+                                inputVo.requestFormStringList,
+                                inputVo.requestFormStringListNullable
+                            )
+                        )
+                    }
                 )
-                .doOnSuccess {
-                    serverHttpResponse.setStatusCode(HttpStatus.OK)
-                    serverHttpResponse.headers.set("api-result-code", "0")
-                }
         }
     }
 
@@ -206,51 +205,61 @@ class C2Service1TkV1RequestTestService(
         serverHttpResponse: ServerHttpResponse, inputVoMono: Mono<C2Service1TkV1RequestTestController.Api8InputVo>
     ): Mono<C2Service1TkV1RequestTestController.Api8OutputVo> {
         return inputVoMono.flatMap { inputVo ->
-            // 비동기적으로 파일 저장
-            val saveFiles = inputVo.multipartFileList.map { filePart ->
-                filePart.transferTo(
-                    Paths.get(
-                        "./files/temp/${
-                            LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy_MM_dd_HH_mm_ss_SSS"))
-                        }_${filePart.filename()}"
-                    )
-                )
+            val baseDirectory = "./files/temp/"
+
+            // 디렉토리가 없으면 생성
+            val directory = Paths.get(baseDirectory)
+            if (!Files.exists(directory)) {
+                Files.createDirectories(directory)
             }
 
-            val saveNullableFiles = inputVo.multipartFileListNullable?.map { nullableFile ->
-                nullableFile.transferTo(
-                    Paths.get(
-                        "./files/temp/${
-                            LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy_MM_dd_HH_mm_ss_SSS"))
-                        }_${nullableFile.filename()}"
+            // 비동기적으로 파일 저장
+            val saveFiles = inputVo.multipartFileList.mapIndexed() { index, filePart ->
+                filePart.transferTo(
+                    CustomUtilObject.resolveDuplicateFileName(
+                        Paths.get(
+                            "${baseDirectory}i${index}_${filePart.filename()}"
+                        )
                     )
-                )
-            } ?: emptyList()
+                ).subscribeOn(Schedulers.boundedElastic())
+            }
 
-            serverHttpResponse.setStatusCode(HttpStatus.OK)
-            serverHttpResponse.headers.set("api-result-code", "0")
+            val saveNullableFiles = inputVo.multipartFileListNullable?.mapIndexed { index, nullableFile ->
+                nullableFile.transferTo(
+                    CustomUtilObject.resolveDuplicateFileName(
+                        Paths.get(
+                            "${baseDirectory}n_i${index}_${nullableFile.filename()}"
+                        )
+                    )
+                ).subscribeOn(Schedulers.boundedElastic())
+            } ?: emptyList()
 
             // 모든 파일이 저장된 후에 계속 진행
             Flux.concat(saveFiles + saveNullableFiles)
                 .then(
-                    Mono.just(
-                        C2Service1TkV1RequestTestController.Api8OutputVo(
-                            inputVo.requestFormString,
-                            inputVo.requestFormStringNullable,
-                            inputVo.requestFormInt,
-                            inputVo.requestFormIntNullable,
-                            inputVo.requestFormDouble,
-                            inputVo.requestFormDoubleNullable,
-                            inputVo.requestFormBoolean,
-                            inputVo.requestFormBooleanNullable,
-                            inputVo.requestFormStringList,
-                            inputVo.requestFormStringListNullable
+                    Mono.create { sink ->
+                        serverHttpResponse.setStatusCode(HttpStatus.OK)
+                        serverHttpResponse.headers.set("api-result-code", "0")
+                        sink.success(
+                            C2Service1TkV1RequestTestController.Api8OutputVo(
+                                inputVo.requestFormString,
+                                inputVo.requestFormStringNullable,
+                                inputVo.requestFormInt,
+                                inputVo.requestFormIntNullable,
+                                inputVo.requestFormDouble,
+                                inputVo.requestFormDoubleNullable,
+                                inputVo.requestFormBoolean,
+                                inputVo.requestFormBooleanNullable,
+                                inputVo.requestFormStringList,
+                                inputVo.requestFormStringListNullable
+                            )
                         )
-                    )
+                    }
                 )
         }
     }
 
+    // todo 아래부터 비동기 처리 및 개선
     ////
     fun api9(
         serverHttpResponse: ServerHttpResponse, inputVoMono: Mono<C2Service1TkV1RequestTestController.Api9InputVo>

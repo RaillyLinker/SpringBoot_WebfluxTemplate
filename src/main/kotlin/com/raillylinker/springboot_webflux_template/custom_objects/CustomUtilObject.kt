@@ -12,6 +12,7 @@ import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.net.URI
+import java.nio.file.Files
 import java.nio.file.Path
 import java.util.regex.Pattern
 import java.util.zip.ZipEntry
@@ -203,5 +204,22 @@ object CustomUtilObject {
     // (radian 을 degree 로)
     fun rad2deg(rad: Double): Double {
         return rad * 180 / Math.PI
+    }
+
+    // (파일 저장 시 중복 처리)
+    // 같은 파일이 존재하면 (1), (2) 와 같이 숫자를 붙임
+    fun resolveDuplicateFileName(filePath: Path): Path {
+        var index = 1
+        var resolvedPath = filePath
+        while (Files.exists(resolvedPath)) {
+            val fileName = filePath.fileName.toString()
+            val extensionIndex = fileName.lastIndexOf('.')
+            val baseName = if (extensionIndex != -1) fileName.substring(0, extensionIndex) else fileName
+            val extension = if (extensionIndex != -1) fileName.substring(extensionIndex) else ""
+            val duplicateName = "$baseName($index)$extension"
+            resolvedPath = filePath.resolveSibling(duplicateName)
+            index++
+        }
+        return resolvedPath
     }
 }
