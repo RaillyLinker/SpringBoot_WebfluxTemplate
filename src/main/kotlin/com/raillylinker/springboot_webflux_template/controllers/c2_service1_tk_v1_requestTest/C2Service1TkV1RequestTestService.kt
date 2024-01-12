@@ -157,6 +157,8 @@ class C2Service1TkV1RequestTestService(
             }
 
             // 비동기적으로 파일 저장
+            // 팁 : 비동기 I/O 작업은 Schedulers.boundedElastic(),
+            //     비동기 CPU 작업은 Schedulers.parallel() 를 사용하세요.
             val fileSaveProcessMono1 = inputVo.multipartFile.transferTo(
                 CustomUtilObject.resolveDuplicateFileName(
                     Paths.get(
