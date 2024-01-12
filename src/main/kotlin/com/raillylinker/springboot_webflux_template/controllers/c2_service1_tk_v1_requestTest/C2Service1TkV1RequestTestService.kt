@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service
 import org.springframework.util.FileCopyUtils
 import org.springframework.web.reactive.result.view.Rendering
 import reactor.core.publisher.*
+import reactor.core.scheduler.Schedulers
 import java.io.File
 import java.io.FileInputStream
 import java.net.URI
@@ -157,7 +158,10 @@ class C2Service1TkV1RequestTestService(
                         LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy_MM_dd_HH_mm_ss_SSS"))
                     }_${inputVo.multipartFile.filename()}"
                 )
-            )
+            ).subscribeOn(Schedulers.boundedElastic())
+                .onErrorResume { throwable ->
+                    throw throwable
+                }
 
             val saveFile2 = inputVo.multipartFileNullable?.let { nullableFile ->
                 // 비동기적으로 파일 저장
@@ -167,29 +171,33 @@ class C2Service1TkV1RequestTestService(
                             LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy_MM_dd_HH_mm_ss_SSS"))
                         }_${nullableFile.filename()}"
                     )
-                )
+                ).subscribeOn(Schedulers.boundedElastic())
+                    .onErrorResume { throwable ->
+                        throw throwable
+                    }
             } ?: Mono.empty()
 
-            // saveFile1, saveFile2 의 비동기 작업이 모두 끝났을 때
-            serverHttpResponse.setStatusCode(HttpStatus.OK)
-            serverHttpResponse.headers.set("api-result-code", "0")
-
-            saveFile1.and(saveFile2).then(
-                Mono.just(
-                    C2Service1TkV1RequestTestController.Api7OutputVo(
-                        inputVo.requestFormString,
-                        inputVo.requestFormStringNullable,
-                        inputVo.requestFormInt,
-                        inputVo.requestFormIntNullable,
-                        inputVo.requestFormDouble,
-                        inputVo.requestFormDoubleNullable,
-                        inputVo.requestFormBoolean,
-                        inputVo.requestFormBooleanNullable,
-                        inputVo.requestFormStringList,
-                        inputVo.requestFormStringListNullable
+            Mono.zip(saveFile1, saveFile2)
+                .then(
+                    Mono.just(
+                        C2Service1TkV1RequestTestController.Api7OutputVo(
+                            inputVo.requestFormString,
+                            inputVo.requestFormStringNullable,
+                            inputVo.requestFormInt,
+                            inputVo.requestFormIntNullable,
+                            inputVo.requestFormDouble,
+                            inputVo.requestFormDoubleNullable,
+                            inputVo.requestFormBoolean,
+                            inputVo.requestFormBooleanNullable,
+                            inputVo.requestFormStringList,
+                            inputVo.requestFormStringListNullable
+                        )
                     )
                 )
-            )
+                .doOnSuccess {
+                    serverHttpResponse.setStatusCode(HttpStatus.OK)
+                    serverHttpResponse.headers.set("api-result-code", "0")
+                }
         }
     }
 
