@@ -1,5 +1,6 @@
 package com.raillylinker.springboot_webflux_template.controllers.c5_service1_tk_v1_mediaResourceProcess
 
+import com.raillylinker.springboot_webflux_template.custom_objects.CustomUtilObject
 import com.raillylinker.springboot_webflux_template.custom_objects.GifUtilObject
 import com.raillylinker.springboot_webflux_template.custom_objects.ImageProcessUtilObject
 import org.slf4j.Logger
@@ -49,20 +50,22 @@ class C5Service1TkV1MediaResourceProcessService(
             } else {
                 inputVo.multipartImageFile.content().reduce(DataBuffer::write)
                     .map { dataBuffer -> ByteArray(dataBuffer.readableByteCount()).apply { dataBuffer.read(this) } }
-                    .map { byteArray ->
+                    .flatMap { byteArray ->
                         // 이미지 리사이징
-                        val resizedImage = ImageProcessUtilObject.resizeImage(
+                        val resizedImageMono = ImageProcessUtilObject.resizeImage(
                             byteArray,
                             inputVo.resizingWidth,
                             inputVo.resizingHeight,
                             inputVo.imageType
                         )
 
-                        // 리사이즈된 이미지를 ByteArrayResource로 만들어서 반환
-                        serverHttpResponse.setStatusCode(HttpStatus.OK)
-                        serverHttpResponse.headers.set("api-result-code", "0")
-                        serverHttpResponse.headers.set("Content-Disposition", "attachment; filename=\"$fileName\"")
-                        ByteArrayResource(resizedImage)
+                        resizedImageMono.flatMap { resizedImage ->
+                            // 리사이즈된 이미지를 ByteArrayResource로 만들어서 반환
+                            serverHttpResponse.setStatusCode(HttpStatus.OK)
+                            serverHttpResponse.headers.set("api-result-code", "0")
+                            serverHttpResponse.headers.set("Content-Disposition", "attachment; filename=\"$fileName\"")
+                            Mono.just(ByteArrayResource(resizedImage))
+                        }
                     }
             }
         }
@@ -71,40 +74,40 @@ class C5Service1TkV1MediaResourceProcessService(
 
     ////
     fun api2(serverHttpResponse: ServerHttpResponse): Mono<Void> {
-        // 프로젝트 루트 경로 (프로젝트 settings.gradle 이 있는 경로)
-        val projectRootAbsolutePathString: String = File("").absolutePath
+        val baseDirectory = "./files/temp/"
 
-        val gifFilePathObject =
-            Paths.get("$projectRootAbsolutePathString/src/main/resources/static/resource_c5_n2/test.gif")
-
-        val frameSplit = ImageProcessUtilObject.gifToImageList(Files.newInputStream(gifFilePathObject))
-
-        // 요청 시간을 문자열로
-        val timeString = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH_mm_ss_SSS"))
+        // 디렉토리가 없으면 생성
+        val saveDirectoryPathString = Paths.get(baseDirectory)
+        if (!Files.exists(saveDirectoryPathString)) {
+            Files.createDirectories(saveDirectoryPathString)
+        }
 
         // 파일 저장 디렉토리 경로
-        val saveDirectoryPathString = "./files/temp/$timeString"
-        val saveDirectoryPath = Paths.get(saveDirectoryPathString).toAbsolutePath().normalize()
+        val saveDirectoryPath = CustomUtilObject.getUniqueDirectoryPath("${baseDirectory}frameSplit")
+
         // 파일 저장 디렉토리 생성
         Files.createDirectories(saveDirectoryPath)
 
-        // 받은 파일 순회
-        for (bufferedImageIndexedValue in frameSplit.withIndex()) {
-            val bufferedImage = bufferedImageIndexedValue.value
-
-            // 확장자 포함 파일명 생성
-            val saveFileName = "${bufferedImageIndexedValue.index + 1}.png"
-
-            // 파일 저장 경로와 파일명(with index) 을 합친 path 객체
-            val fileTargetPath = saveDirectoryPath.resolve(saveFileName).normalize()
-
-            // 파일 저장
-            ImageIO.write(bufferedImage.frameBufferedImage, "png", fileTargetPath.toFile())
-        }
-
-        serverHttpResponse.setStatusCode(HttpStatus.OK)
-        serverHttpResponse.headers.set("api-result-code", "0")
-        return serverHttpResponse.setComplete()
+        return ImageProcessUtilObject.gifToImageList(
+            Files.newInputStream(
+                Paths.get("${File("").absolutePath}/src/main/resources/static/resource_c5_n2/test.gif")
+            )
+        )
+            .index()
+            .map {
+                ImageIO.write(
+                    it.t2.frameBufferedImage,
+                    "png",
+                    saveDirectoryPath.resolve("${it.t1 + 1}.png").normalize().toFile()
+                )
+            }.then(
+                Mono.create { sink ->
+                    serverHttpResponse.setStatusCode(HttpStatus.OK)
+                    serverHttpResponse.headers.set("api-result-code", "0")
+                    serverHttpResponse.setComplete()
+                    sink.success(null)
+                }
+            )
     }
 
 

@@ -1,5 +1,8 @@
 package com.raillylinker.springboot_webflux_template.custom_objects
 
+import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
+import reactor.core.scheduler.Schedulers
 import java.awt.Image
 import java.awt.image.BufferedImage
 import java.io.*
@@ -13,19 +16,20 @@ object ImageProcessUtilObject {
         resizeWidth: Int,
         resizeHeight: Int,
         imageTypeEnum: ResizeImageTypeEnum
-    ): ByteArray {
-        val imageType = imageTypeEnum.typeStr
-        val bufferedResizedImage = BufferedImage(resizeWidth, resizeHeight, BufferedImage.TYPE_INT_RGB)
-        bufferedResizedImage.createGraphics().drawImage(
-            ImageIO.read(imageBytes.inputStream())
-                .getScaledInstance(resizeWidth, resizeHeight, BufferedImage.SCALE_SMOOTH),
-            0,
-            0,
-            null
-        )
-        val outputStream = ByteArrayOutputStream()
-        ImageIO.write(bufferedResizedImage, imageType, outputStream)
-        return outputStream.toByteArray()
+    ): Mono<ByteArray> {
+        return Mono.fromCallable {
+            val bufferedResizedImage = BufferedImage(resizeWidth, resizeHeight, BufferedImage.TYPE_INT_RGB)
+            bufferedResizedImage.createGraphics().drawImage(
+                ImageIO.read(ByteArrayInputStream(imageBytes))
+                    .getScaledInstance(resizeWidth, resizeHeight, BufferedImage.SCALE_SMOOTH),
+                0,
+                0,
+                null
+            )
+            val outputStream = ByteArrayOutputStream()
+            ImageIO.write(bufferedResizedImage, imageTypeEnum.typeStr, outputStream)
+            outputStream.toByteArray()
+        }.subscribeOn(Schedulers.boundedElastic())
     }
 
     enum class ResizeImageTypeEnum(val typeStr: String) {
@@ -36,8 +40,10 @@ object ImageProcessUtilObject {
     }
 
     // (Gif 를 이미지 리스트로 분리)
-    fun gifToImageList(inputStream: InputStream): ArrayList<GifUtilObject.GifFrame> {
-        return GifUtilObject.decodeGif(inputStream)
+    fun gifToImageList(inputStream: InputStream): Flux<GifUtilObject.GifFrame> {
+        return Mono.fromCallable { GifUtilObject.decodeGif(inputStream) }
+            .subscribeOn(Schedulers.parallel()) // 비동기 작업을 실행할 스레드 풀을 선택
+            .flatMapMany { Flux.fromIterable(it) }
     }
 
     // (이미지 리스트를 Gif 로 병합)

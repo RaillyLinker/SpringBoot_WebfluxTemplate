@@ -5,5 +5,5 @@
 
 - 웹소켓 샘플(Sockjs 및 stomp)
 - Redis 샘플
-- kafka, rabbit mq, ELK( Elasticsearch / Logstatsh / Kibana )스택
+- ELK( Elasticsearch / Logstatsh / Kibana )스택
 - avif 변환, 비디오 변환
