@@ -60,15 +60,18 @@ dependencies {
 	// : HTML -> PDF 변환 라이브러리
 	implementation("org.xhtmlrenderer:flying-saucer-pdf:9.3.1")
 
+    // (Kafka)
+    implementation("org.springframework.kafka:spring-kafka:3.1.1")
+
     // (Database R2DBC)
     implementation("org.springframework.boot:spring-boot-starter-data-r2dbc:3.2.1")
     implementation("io.asyncer:r2dbc-mysql:1.0.6")
 
-	// (JWT)
-	// : JWT 인증 토큰 라이브러리
-	runtimeOnly("io.jsonwebtoken:jjwt-impl:0.12.3")
-	implementation("io.jsonwebtoken:jjwt-api:0.12.3")
-	runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.12.3")
+//	// (JWT)
+//	// : JWT 인증 토큰 라이브러리
+//	runtimeOnly("io.jsonwebtoken:jjwt-impl:0.12.3")
+//	implementation("io.jsonwebtoken:jjwt-api:0.12.3")
+//	runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.12.3")
 
 //	// todo redis
 //	// todo security
