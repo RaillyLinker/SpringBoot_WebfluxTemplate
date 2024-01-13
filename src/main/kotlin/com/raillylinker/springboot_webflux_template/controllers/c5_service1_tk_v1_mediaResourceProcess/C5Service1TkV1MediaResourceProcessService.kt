@@ -37,11 +37,9 @@ class C5Service1TkV1MediaResourceProcessService(
         inputVoMono: Mono<C5Service1TkV1MediaResourceProcessController.Api1InputVo>
     ): Mono<Resource> {
         return inputVoMono.flatMap { inputVo ->
-            val imageFile = inputVo.multipartImageFile
-
             // 이미지 파일의 확장자 확인
             val allowedExtensions = setOf("jpg", "jpeg", "bmp", "png", "gif")
-            val fileName = imageFile.filename()
+            val fileName = inputVo.multipartImageFile.filename()
             val fileExtension = fileName.split(".").lastOrNull()?.lowercase(Locale.getDefault())
 
             if (fileExtension !in allowedExtensions) {
@@ -49,7 +47,7 @@ class C5Service1TkV1MediaResourceProcessService(
                 serverHttpResponse.headers.set("api-result-code", "1")
                 Mono.empty()
             } else {
-                imageFile.content().reduce(DataBuffer::write)
+                inputVo.multipartImageFile.content().reduce(DataBuffer::write)
                     .map { dataBuffer -> ByteArray(dataBuffer.readableByteCount()).apply { dataBuffer.read(this) } }
                     .map { byteArray ->
                         // 이미지 리사이징

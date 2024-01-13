@@ -25,7 +25,6 @@ class C3Service1TkV1RequestFromServerTestService(
     // ---------------------------------------------------------------------------------------------
     // <공개 메소드 공간>
     fun api1(serverHttpResponse: ServerHttpResponse): Mono<String> {
-
         return LocalHostApis.getService1TkV1RequestTest().flatMap { response ->
             val httpStatus = response.clientResponse.statusCode()
             if (httpStatus.is2xxSuccessful) {
@@ -46,7 +45,6 @@ class C3Service1TkV1RequestFromServerTestService(
 
     ////
     fun api2(serverHttpResponse: ServerHttpResponse): Mono<String> {
-
         return LocalHostApis.getService1TkV1RequestTestRedirectToBlank().flatMap { response ->
             val httpStatus = response.clientResponse.statusCode()
             if (httpStatus.is2xxSuccessful) {
@@ -67,7 +65,6 @@ class C3Service1TkV1RequestFromServerTestService(
 
     ////
     fun api3(serverHttpResponse: ServerHttpResponse): Mono<C3Service1TkV1RequestFromServerTestController.Api3OutputVo> {
-
         return LocalHostApis.getService1TkV1RequestTestGetRequest(
             LocalHostApis.GetService1TkV1RequestTestGetRequestRequestQueryParamVo(
                 "paramFromServer",
@@ -114,7 +111,6 @@ class C3Service1TkV1RequestFromServerTestService(
     }
 
     fun api4(serverHttpResponse: ServerHttpResponse): Mono<C3Service1TkV1RequestFromServerTestController.Api4OutputVo> {
-
         return LocalHostApis.getService1TkV1RequestTestGetRequestPathParamInt(
             LocalHostApis.GetService1TkV1RequestTestGetRequestPathParamIntRequestPathParamVo(
                 1234
@@ -143,7 +139,6 @@ class C3Service1TkV1RequestFromServerTestService(
 
     ////
     fun api5(serverHttpResponse: ServerHttpResponse): Mono<C3Service1TkV1RequestFromServerTestController.Api5OutputVo> {
-
         return LocalHostApis.postService1TkV1RequestTestPostRequestApplicationJson(
             LocalHostApis.PostService1TkV1RequestTestPostRequestApplicationJsonRequestBodyVo(
                 "paramFromServer",
@@ -191,7 +186,6 @@ class C3Service1TkV1RequestFromServerTestService(
 
     ////
     fun api6(serverHttpResponse: ServerHttpResponse): Mono<C3Service1TkV1RequestFromServerTestController.Api6OutputVo> {
-
         return LocalHostApis.postService1TkV1RequestTestPostRequestXWwwFormUrlencoded(
             LocalHostApis.PostService1TkV1RequestTestPostRequestXWwwFormUrlencodedRequestFormVo(
                 "paramFromServer",
@@ -238,10 +232,6 @@ class C3Service1TkV1RequestFromServerTestService(
 
     ////
     fun api7(serverHttpResponse: ServerHttpResponse): Mono<C3Service1TkV1RequestFromServerTestController.Api7OutputVo> {
-        val serverFile =
-            Paths.get("${File("").absolutePath}/src/main/resources/static/resource_c3_n7/test.txt")
-                .toFile()
-
         return LocalHostApis.postService1TkV1RequestTestPostRequestMultipartFormData(
             LocalHostApis.PostService1TkV1RequestTestPostRequestMultipartFormDataRequestFormVo(
                 "paramFromServer",
@@ -254,7 +244,10 @@ class C3Service1TkV1RequestFromServerTestService(
                 null,
                 listOf("paramFromServer", "paramFromServer"),
                 null,
-                FileSystemResource(serverFile),
+                FileSystemResource(
+                    Paths.get("${File("").absolutePath}/src/main/resources/static/resource_c3_n7/test.txt")
+                        .toFile()
+                ),
                 null
             )
         ).flatMap { response ->
@@ -290,13 +283,6 @@ class C3Service1TkV1RequestFromServerTestService(
 
     ////
     fun api8(serverHttpResponse: ServerHttpResponse): Mono<C3Service1TkV1RequestFromServerTestController.Api8OutputVo> {
-        val serverFile1 =
-            Paths.get("${File("").absolutePath}/src/main/resources/static/resource_c3_n8/test1.txt")
-                .toFile()
-        val serverFile2 =
-            Paths.get("${File("").absolutePath}/src/main/resources/static/resource_c3_n8/test2.txt")
-                .toFile()
-
         return LocalHostApis.postService1TkV1RequestTestPostRequestMultipartFormData2(
             LocalHostApis.PostService1TkV1RequestTestPostRequestMultipartFormData2RequestFormVo(
                 "paramFromServer",
@@ -309,7 +295,16 @@ class C3Service1TkV1RequestFromServerTestService(
                 null,
                 listOf("paramFromServer", "paramFromServer"),
                 null,
-                listOf(FileSystemResource(serverFile1), FileSystemResource(serverFile2)),
+                listOf(
+                    FileSystemResource(
+                        Paths.get("${File("").absolutePath}/src/main/resources/static/resource_c3_n8/test1.txt")
+                            .toFile()
+                    ),
+                    FileSystemResource(
+                        Paths.get("${File("").absolutePath}/src/main/resources/static/resource_c3_n8/test2.txt")
+                            .toFile()
+                    )
+                ),
                 null
             )
         ).flatMap { response ->
@@ -346,29 +341,26 @@ class C3Service1TkV1RequestFromServerTestService(
 
     ////
     fun api9(serverHttpResponse: ServerHttpResponse): Mono<C3Service1TkV1RequestFromServerTestController.Api9OutputVo> {
-        val serverFile =
-            Paths.get("${File("").absolutePath}/src/main/resources/static/resource_c3_n7/test.txt")
-                .toFile()
-
-        val jsonString = Gson().toJson(
-            LocalHostApis.PostService1TkV1RequestTestPostRequestMultipartFormDataJsonRequestFormVo.PostService1TkV1RequestTestPostRequestMultipartFormDataJsonJsonStringVo(
-                "paramFromServer",
-                null,
-                1,
-                null,
-                1.1,
-                null,
-                true,
-                null,
-                listOf("paramFromServer"),
-                null
-            )
-        )
-
         return LocalHostApis.postService1TkV1RequestTestPostRequestMultipartFormDataJson(
             LocalHostApis.PostService1TkV1RequestTestPostRequestMultipartFormDataJsonRequestFormVo(
-                jsonString,
-                FileSystemResource(serverFile),
+                Gson().toJson(
+                    LocalHostApis.PostService1TkV1RequestTestPostRequestMultipartFormDataJsonRequestFormVo.PostService1TkV1RequestTestPostRequestMultipartFormDataJsonJsonStringVo(
+                        "paramFromServer",
+                        null,
+                        1,
+                        null,
+                        1.1,
+                        null,
+                        true,
+                        null,
+                        listOf("paramFromServer"),
+                        null
+                    )
+                ),
+                FileSystemResource(
+                    Paths.get("${File("").absolutePath}/src/main/resources/static/resource_c3_n7/test.txt")
+                        .toFile()
+                ),
                 null
             )
         ).flatMap { response ->
@@ -490,7 +482,6 @@ class C3Service1TkV1RequestFromServerTestService(
 
     ////
     fun api13(serverHttpResponse: ServerHttpResponse): Mono<String> {
-
         return LocalHostApis.getService1TkV1RequestTestReturnTextString().flatMap { response ->
             val httpStatus = response.clientResponse.statusCode()
             if (httpStatus.is2xxSuccessful) {
@@ -511,7 +502,6 @@ class C3Service1TkV1RequestFromServerTestService(
 
     ////
     fun api14(serverHttpResponse: ServerHttpResponse): Mono<String> {
-
         return LocalHostApis.getService1TkV1RequestTestReturnTextHtml().flatMap { response ->
             val httpStatus = response.clientResponse.statusCode()
             if (httpStatus.is2xxSuccessful) {

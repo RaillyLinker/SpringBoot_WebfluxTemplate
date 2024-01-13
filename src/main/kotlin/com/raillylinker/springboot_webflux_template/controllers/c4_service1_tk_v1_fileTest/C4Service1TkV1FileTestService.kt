@@ -126,17 +126,18 @@ class C4Service1TkV1FileTestService(
             Files.createDirectories(saveDirectoryPathString)
         }
 
-        // 확장자 포함 파일명 생성
-        val fileTargetPath = CustomUtilObject.resolveDuplicateFileName(
-            Paths.get(
-                "${baseDirectory}zipped.zip"
-            )
-        )
-
         // 비동기적으로 압축 파일 생성
         val zipOperationMono = Mono.defer {
             Mono.fromCallable {
-                val zipOutputStream = ZipOutputStream(FileOutputStream(fileTargetPath.toFile()))
+                val zipOutputStream = ZipOutputStream(
+                    FileOutputStream(
+                        CustomUtilObject.resolveDuplicateFileName(
+                            Paths.get(
+                                "${baseDirectory}zipped.zip"
+                            )
+                        ).toFile()
+                    )
+                )
                 for (filePath in filePathList) {
                     val file = File(filePath)
                     if (file.exists()) {
@@ -148,10 +149,10 @@ class C4Service1TkV1FileTestService(
         }.subscribeOn(Schedulers.boundedElastic())
 
         return zipOperationMono.then(
-            Mono.fromRunnable {
+            Mono.create { sink ->
                 serverHttpResponse.setStatusCode(HttpStatus.OK)
                 serverHttpResponse.headers.set("api-result-code", "0")
-                serverHttpResponse.setComplete()
+                sink.success(null)
             }
         )
     }
@@ -189,21 +190,16 @@ class C4Service1TkV1FileTestService(
         }.subscribeOn(Schedulers.boundedElastic())
 
         return zipOperationMono.then(
-            Mono.fromRunnable {
+            Mono.create { sink ->
                 serverHttpResponse.setStatusCode(HttpStatus.OK)
                 serverHttpResponse.headers.set("api-result-code", "0")
-                serverHttpResponse.setComplete()
+                sink.success(null)
             }
         )
     }
 
     ////
     fun api4(serverHttpResponse: ServerHttpResponse): Mono<Void> {
-        // 프로젝트 루트 경로 (프로젝트 settings.gradle 이 있는 경로)
-        val projectRootAbsolutePathString: String = File("").absolutePath
-        val filePathString =
-            "$projectRootAbsolutePathString/src/main/resources/static/resource_c4_n4/test.zip"
-
         val baseDirectory = "./files/temp/"
 
         // 디렉토리가 없으면 생성
@@ -212,20 +208,20 @@ class C4Service1TkV1FileTestService(
             Files.createDirectories(saveDirectoryPathString)
         }
 
-        // 확장자 포함 파일명 생성
-        val fileTargetPath = CustomUtilObject.getUniqueDirectoryPath("${baseDirectory}unzipped")
-
         val unzipOperationMono = Mono.defer {
             Mono.fromCallable {
-                CustomUtilObject.unzipFile(filePathString, fileTargetPath)
+                CustomUtilObject.unzipFile(
+                    "${File("").absolutePath}/src/main/resources/static/resource_c4_n4/test.zip",
+                    CustomUtilObject.getUniqueDirectoryPath("${baseDirectory}unzipped")
+                )
             }
         }.subscribeOn(Schedulers.boundedElastic())
 
         return unzipOperationMono.then(
-            Mono.fromRunnable {
+            Mono.create { sink ->
                 serverHttpResponse.setStatusCode(HttpStatus.OK)
                 serverHttpResponse.headers.set("api-result-code", "0")
-                serverHttpResponse.setComplete()
+                sink.success(null)
             }
         )
     }
