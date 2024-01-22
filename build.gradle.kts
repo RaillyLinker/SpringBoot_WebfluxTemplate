@@ -61,6 +61,7 @@ dependencies {
 	implementation("org.xhtmlrenderer:flying-saucer-pdf:9.3.1")
 
     // (Kafka)
+    implementation("io.projectreactor.kafka:reactor-kafka:1.3.22")
     implementation("org.springframework.kafka:spring-kafka:3.1.1")
 
     // (Database R2DBC)

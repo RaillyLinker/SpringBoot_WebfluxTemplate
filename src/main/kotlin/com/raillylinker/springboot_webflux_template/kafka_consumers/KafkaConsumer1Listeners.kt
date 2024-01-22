@@ -2,6 +2,7 @@ package com.raillylinker.springboot_webflux_template.kafka_consumers
 
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import org.springframework.kafka.annotation.KafkaListener
 import org.springframework.stereotype.Component
 
 @Component
@@ -17,8 +18,8 @@ class KafkaConsumer1Listeners {
 
     // ---------------------------------------------------------------------------------------------
     // <공개 메소드 공간>
-//    @KafkaListener(topics = ["testTopic"], groupId = "group_0", containerFactory = KAFKA_CONSUMER_CONTAINER_FACTORY)
-//    fun listener(data: Any) {
-//        classLogger.info(">>>>>>>>>>$data<<<<<<<<<<")
-//    }
+    @KafkaListener(topics = ["testTopic"], groupId = "group_0", containerFactory = KAFKA_CONSUMER_CONTAINER_FACTORY)
+    fun listener(data: Any?) {
+        classLogger.info(">>>>>>>>>>$data<<<<<<<<<<")
+    }
 }

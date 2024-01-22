@@ -7,11 +7,13 @@ import com.raillylinker.springboot_webflux_template.custom_objects.PdfGenerator
 import com.raillylinker.springboot_webflux_template.custom_objects.ThymeleafParserUtilObject
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.core.io.ClassPathResource
 import org.springframework.core.io.buffer.DataBuffer
 import org.springframework.http.HttpStatus
 import org.springframework.http.server.reactive.ServerHttpResponse
+import org.springframework.kafka.core.KafkaTemplate
 import org.springframework.stereotype.Service
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -30,7 +32,7 @@ class C6Service1TkV1TestService(
     private val emailSenderUtilDi: EmailSenderUtilDi,
     // 네이버 메시지 발송 유틸
     private val naverSmsUtilDi: NaverSmsUtilDi,
-//    @Qualifier("kafkaProducer1") private val kafkaProducer1: KafkaTemplate<String, Any>
+    @Qualifier("kafkaProducer0") private val kafkaProducer0: KafkaTemplate<String, Any>
 ) {
     // <멤버 변수 공간>
     private val classLogger: Logger = LoggerFactory.getLogger(this::class.java)
@@ -239,7 +241,7 @@ class C6Service1TkV1TestService(
     ////
     fun api7(serverHttpResponse: ServerHttpResponse, inputVo: C6Service1TkV1TestController.Api7InputVo): Mono<Void> {
         // kafkaProducer1 에 토픽 메세지 발행
-//        kafkaProducer1.send(inputVo.topic, inputVo.message)
+        kafkaProducer0.send(inputVo.topic, inputVo.message)
 
         serverHttpResponse.setStatusCode(HttpStatus.OK)
         serverHttpResponse.headers.set("api-result-code", "0")
